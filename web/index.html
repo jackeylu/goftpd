@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FTP Server</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, "Microsoft YaHei", sans-serif;
+  background: #f0f0f0;
+  display: flex; justify-content: center; align-items: center;
+  min-height: 100vh;
+}
+.app {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0,0,0,.15);
+  width: 480px;
+  padding: 24px;
+  position: relative;
+}
+.lang {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  font-size: 12px;
+  color: #999;
+  user-select: none;
+}
+.lang span { cursor: pointer; padding: 2px 4px; }
+.lang span:hover { color: #4a90d9; }
+.lang span.on { color: #4a90d9; font-weight: 600; }
+h1 {
+  font-size: 16px;
+  text-align: center;
+  margin-bottom: 20px;
+  color: #333;
+}
+fieldset {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+legend {
+  font-size: 13px;
+  font-weight: 600;
+  color: #555;
+  padding: 0 6px;
+}
+
+/* Two-column form grid: label | input */
+.form-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 12px;
+  align-items: center;
+}
+.form-grid label {
+  font-size: 13px;
+  color: #444;
+  white-space: nowrap;
+}
+.form-grid input[type="text"],
+.form-grid input[type="number"] {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+}
+.form-grid input:focus { border-color: #4a90d9; }
+
+/* Single row spanning both columns */
+.full-row {
+  grid-column: 1 / -1;
+  margin-bottom: 4px;
+}
+.full-row label {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 13px; cursor: pointer;
+}
+
+/* Auth: two pairs on one line using 4-column grid */
+.auth-grid {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  gap: 10px 10px;
+  align-items: center;
+}
+.auth-grid label {
+  font-size: 13px; color: #444; white-space: nowrap;
+}
+.auth-grid input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+}
+.auth-grid input:focus { border-color: #4a90d9; }
+
+/* Network: same 4-column layout as auth */
+.network-grid {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  gap: 10px 10px;
+  align-items: center;
+}
+.network-grid label {
+  font-size: 13px; color: #444; white-space: nowrap;
+}
+.network-grid input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+}
+.network-grid input:focus { border-color: #4a90d9; }
+
+/* Permissions: checkbox grid */
+.perm-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 16px;
+}
+.perm-grid label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; cursor: pointer;
+}
+.perm-grid label:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+/* Upload limits: input + select on one line */
+.limit-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.limit-row input[type="number"] {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+}
+.limit-row input:focus { border-color: #4a90d9; }
+.limit-row select {
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+  background: #fff;
+  cursor: pointer;
+  outline: none;
+}
+.limit-row select:focus { border-color: #4a90d9; }
+.limit-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px 12px;
+  align-items: center;
+}
+.limit-grid label {
+  font-size: 13px;
+  color: #444;
+  white-space: nowrap;
+}
+
+/* Shared directory */
+.dir-row {
+  display: flex; gap: 8px; align-items: center;
+}
+.dir-row input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 13px;
+  outline: none;
+}
+.dir-row input:focus { border-color: #4a90d9; }
+.browse-btn {
+  padding: 6px 14px;
+  background: #f5f5f5;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.browse-btn:hover { background: #eee; }
+
+/* Status */
+.status {
+  text-align: center;
+  font-size: 13px;
+  margin-top: 14px;
+  min-height: 20px;
+  color: #888;
+}
+.status.running { color: #27ae60; font-weight: 600; }
+
+/* Buttons */
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+}
+.btn {
+  padding: 8px 28px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .2s;
+}
+.btn-primary { background: #4a90d9; color: #fff; }
+.btn-primary:hover { background: #3a7bc8; }
+.btn-primary.running { background: #e74c3c; }
+.btn-primary.running:hover { background: #c0392b; }
+.btn-secondary { background: #f5f5f5; color: #555; border: 1px solid #ddd; }
+.btn-secondary:hover { background: #eee; }
+
+/* Log panel */
+.log-toggle {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 6px 0;
+  background: none;
+  border: 1px dashed #ccc;
+  border-radius: 4px;
+  color: #888;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: center;
+  transition: color .2s, border-color .2s;
+}
+.log-toggle:hover { color: #4a90d9; border-color: #4a90d9; }
+.log-panel {
+  margin-top: 8px;
+  background: #1e1e1e;
+  border-radius: 6px;
+  padding: 10px 12px;
+  max-height: 220px;
+  overflow-y: auto;
+  font-family: "Cascadia Code", "Consolas", "Menlo", monospace;
+  font-size: 11.5px;
+  line-height: 1.6;
+  display: none;
+}
+.log-panel.open { display: block; }
+.log-panel::-webkit-scrollbar { width: 6px; }
+.log-panel::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+.log-line { white-space: pre-wrap; word-break: break-all; }
+.log-line .log-time { color: #666; }
+.log-line .log-ok { color: #6ec86e; }
+.log-line .log-denied { color: #e06c75; }
+.log-line .log-error { color: #e06c75; }
+.log-line .log-warn { color: #d19a66; }
+.log-line .log-default { color: #abb2bf; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="lang">
+    <span class="on" data-lang="zh">中文</span> | <span data-lang="en">EN</span>
+  </div>
+
+  <h1 data-t="title">简单FTP Server</h1>
+
+  <!-- 身份验证 -->
+  <fieldset>
+    <legend data-t="auth">身份验证</legend>
+    <div class="full-row" style="margin-bottom:10px">
+      <label><input type="checkbox" id="authEnabled" checked> <span data-t="authToggle">验证身份</span></label>
+    </div>
+    <div class="auth-grid">
+      <label data-t="user">用户</label><input type="text" id="username" value="db">
+      <label data-t="pass">密码</label><input type="text" id="password" value="sx">
+    </div>
+  </fieldset>
+
+  <!-- 权限 -->
+  <fieldset>
+    <legend data-t="perms">权限</legend>
+    <div class="perm-grid">
+      <label><input type="checkbox" id="permDownload" checked> <span data-t="download">下载文件</span></label>
+      <label><input type="checkbox" id="permUpload"> <span data-t="upload">上传文件</span></label>
+      <label><input type="checkbox" id="permDelete" checked> <span data-t="delete">删除文件</span></label>
+      <label><input type="checkbox" id="permRename" checked> <span data-t="rename">文件改名</span></label>
+      <label><input type="checkbox" id="permMkdir"> <span data-t="mkdir">新建目录</span></label>
+    </div>
+  </fieldset>
+
+  <!-- 上传限制 -->
+  <fieldset>
+    <legend data-t="uploadLimits">上传限制</legend>
+    <div class="limit-grid">
+      <label data-t="maxFileSize">文件大小上限</label>
+      <div class="limit-row">
+        <input type="number" id="maxFileSizeValue" value="0" min="0" placeholder="0 = 无限">
+        <select id="maxFileSizeUnit">
+          <option value="mb">MB</option>
+          <option value="gb">GB</option>
+        </select>
+      </div>
+      <label data-t="maxIPFiles">每IP文件数上限</label>
+      <input type="number" id="maxIPFiles" value="0" min="0" style="width:100%;padding:6px 10px;border:1px solid #ccc;border-radius:4px;font-size:13px;outline:none" placeholder="0 = 无限">
+    </div>
+  </fieldset>
+
+  <!-- 其他 -->
+  <fieldset>
+    <legend data-t="other">其他</legend>
+    <div class="network-grid">
+      <label data-t="port">服务器端口</label><input type="number" id="port" value="21" min="1" max="65535">
+      <label data-t="maxConn">最大连接数</label><input type="number" id="maxConn" value="100" min="1">
+    </div>
+  </fieldset>
+
+  <!-- 共享目录 -->
+  <fieldset>
+    <legend data-t="sharedDir">共享目录</legend>
+    <div class="dir-row">
+      <input type="text" id="sharedDir" value="C:\\">
+      <button class="browse-btn" id="browseBtn">...</button>
+    </div>
+  </fieldset>
+
+  <div class="status" id="status" data-t="statusStopped">状态：已停止</div>
+
+  <div class="actions">
+    <button class="btn btn-secondary" id="saveBtn" data-t="save">保存配置</button>
+    <button class="btn btn-primary" id="toggleBtn" data-t="start">启动</button>
+  </div>
+
+  <button class="log-toggle" id="logToggle" data-t="viewLogs">查看日志 ▼</button>
+  <div class="log-panel" id="logPanel"></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+const UNITS = { mb: 1024*1024, gb: 1024*1024*1024 };
+
+function bytesToHuman(bytes) {
+  if (!bytes || bytes <= 0) return { value: 0, unit: 'mb' };
+  const gb = bytes / UNITS.gb;
+  if (gb >= 1 && Number.isInteger(gb)) return { value: gb, unit: 'gb' };
+  const mb = bytes / UNITS.mb;
+  if (mb >= 1 && Number.isInteger(mb)) return { value: mb, unit: 'mb' };
+  return { value: parseFloat(mb.toFixed(2)), unit: 'mb' };
+}
+
+function humanToBytes(value, unit) {
+  if (!value || value <= 0) return 0;
+  return Math.round(value * UNITS[unit]);
+}
+
+/* ---- i18n ---- */
+const T = {
+  zh: {
+    title: '简单FTP Server',
+    auth: '身份验证',
+    authToggle: '验证身份',
+    user: '用户',
+    pass: '密码',
+    perms: '权限',
+    download: '下载文件',
+    upload: '上传文件',
+    delete: '删除文件',
+    rename: '文件改名',
+    mkdir: '新建目录',
+    uploadLimits: '上传限制',
+    maxFileSize: '文件大小上限',
+    maxIPFiles: '每IP文件数上限',
+    other: '其他',
+    port: '服务器端口',
+    maxConn: '最大连接数',
+    sharedDir: '共享目录',
+    save: '保存配置',
+    start: '启动',
+    stop: '停止',
+    statusStopped: '状态：已停止',
+    statusRunning: '状态：运行中（端口 ',
+    statusEnd: '）',
+    saved: '配置已保存',
+    reloaded: '配置已热更新（新连接生效）',
+    browsePrompt: '请输入共享目录路径：',
+    error: '错误：',
+    viewLogs: '查看日志',
+    hideLogs: '收起日志',
+  },
+  en: {
+    title: 'FTP Server',
+    auth: 'Authentication',
+    authToggle: 'Enable Auth',
+    user: 'Username',
+    pass: 'Password',
+    perms: 'Permissions',
+    download: 'Download',
+    upload: 'Upload',
+    delete: 'Delete',
+    rename: 'Rename',
+    mkdir: 'New Folder',
+    uploadLimits: 'Upload Limits',
+    maxFileSize: 'Max File Size',
+    maxIPFiles: 'Max Files/IP',
+    other: 'Settings',
+    port: 'Port',
+    maxConn: 'Max Connections',
+    sharedDir: 'Shared Directory',
+    save: 'Save Config',
+    start: 'Start',
+    stop: 'Stop',
+    statusStopped: 'Status: Stopped',
+    statusRunning: 'Status: Running (port ',
+    statusEnd: ')',
+    saved: 'Config saved',
+    reloaded: 'Config hot-reloaded (takes effect now)',
+    browsePrompt: 'Enter shared directory path:',
+    error: 'Error: ',
+    viewLogs: 'View Logs',
+    hideLogs: 'Hide Logs',
+  }
+};
+
+let lang = localStorage.getItem('lang') || 'zh';
+
+function t(key) { return T[lang][key]; }
+
+function applyLang() {
+  document.querySelectorAll('[data-t]').forEach(el => {
+    el.textContent = t(el.dataset.t);
+  });
+  // Restore log toggle arrow state after text update
+  const logBtn = document.getElementById('logToggle');
+  if (logBtn) {
+    logBtn.textContent = logOpen ? t('hideLogs') + ' ▲' : t('viewLogs') + ' ▼';
+  }
+  document.querySelectorAll('.lang span').forEach(el => {
+    el.classList.toggle('on', el.dataset.lang === lang);
+  });
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+}
+
+document.querySelectorAll('.lang span').forEach(el => {
+  el.addEventListener('click', () => {
+    lang = el.dataset.lang;
+    localStorage.setItem('lang', lang);
+    applyLang();
+    // Re-render dynamic status
+    if (isRunning) {
+      setRunning(true, savedPort);
+    } else {
+      $('status').textContent = t('statusStopped');
+    }
+  });
+});
+
+/* ---- Config ---- */
+async function loadConfig() {
+  try {
+    const res = await fetch('/api/config');
+    const cfg = await res.json();
+    $('authEnabled').checked = cfg.auth.enabled;
+    $('username').value = cfg.auth.username;
+    $('password').value = cfg.auth.password;
+    $('permDownload').checked = cfg.permissions.download;
+    $('permUpload').checked = cfg.permissions.upload;
+    $('permDelete').checked = cfg.permissions.delete;
+    $('permRename').checked = cfg.permissions.rename;
+    $('permMkdir').checked = cfg.permissions.mkdir;
+
+    // Upload limits: bytes → human readable
+    const fs = bytesToHuman(cfg.permissions.max_upload_file_size || 0);
+    $('maxFileSizeValue').value = fs.value;
+    $('maxFileSizeUnit').value = fs.unit;
+    $('maxIPFiles').value = cfg.permissions.max_ip_files || 0;
+
+    $('port').value = cfg.network.port;
+    $('maxConn').value = cfg.network.max_connections;
+    $('sharedDir').value = cfg.storage.shared_dir;
+  } catch(e) {
+    console.log('Using default values');
+  }
+}
+
+function collectConfig() {
+  return {
+    auth: {
+      enabled: $('authEnabled').checked,
+      username: $('username').value,
+      password: $('password').value
+    },
+    permissions: {
+      download: $('permDownload').checked,
+      upload: $('permUpload').checked,
+      delete: $('permDelete').checked,
+      rename: $('permRename').checked,
+      mkdir: $('permMkdir').checked,
+      max_upload_file_size: humanToBytes(parseFloat($('maxFileSizeValue').value) || 0, $('maxFileSizeUnit').value),
+      max_ip_files: parseInt($('maxIPFiles').value) || 0
+    },
+    network: {
+      port: parseInt($('port').value) || 21,
+      max_connections: parseInt($('maxConn').value) || 100
+    },
+    storage: {
+      shared_dir: $('sharedDir').value || '.'
+    }
+  };
+}
+
+function setRunning(running, port) {
+  const btn = $('toggleBtn');
+  const status = $('status');
+  if (running) {
+    btn.textContent = t('stop');
+    btn.classList.add('running');
+    status.textContent = t('statusRunning') + port + t('statusEnd');
+    status.classList.add('running');
+  } else {
+    btn.textContent = t('start');
+    btn.classList.remove('running');
+    status.textContent = t('statusStopped');
+    status.classList.remove('running');
+  }
+}
+
+let savedPort = null;
+let isRunning = false;
+
+$('saveBtn').onclick = async () => {
+  const cfg = collectConfig();
+  await fetch('/api/config', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(cfg)
+  });
+
+  let msg = t('saved');
+  if (isRunning) {
+    await fetch('/api/reload', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(cfg)
+    });
+    msg = t('reloaded');
+  }
+
+  $('status').textContent = msg;
+  setTimeout(() => {
+    $('status').textContent = $('toggleBtn').classList.contains('running')
+      ? t('statusRunning') + $('port').value + t('statusEnd')
+      : t('statusStopped');
+  }, 2000);
+};
+
+$('toggleBtn').onclick = async () => {
+  if (isRunning) {
+    await fetch('/api/stop', { method: 'POST' });
+    isRunning = false;
+    setRunning(false);
+  } else {
+    const cfg = collectConfig();
+    await fetch('/api/config', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(cfg)
+    });
+    const res = await fetch('/api/start', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(cfg)
+    });
+    const data = await res.json();
+    if (data.error) {
+      $('status').textContent = t('error') + data.error;
+      return;
+    }
+    isRunning = true;
+    savedPort = data.port;
+    setRunning(true, data.port);
+  }
+};
+
+$('browseBtn').onclick = () => {
+  const path = window.prompt(t('browsePrompt'), $('sharedDir').value);
+  if (path !== null) {
+    $('sharedDir').value = path;
+  }
+};
+
+/* ---- Log panel ---- */
+let logOpen = false;
+let logTimer = null;
+let lastLogCount = 0;
+
+function logClass(msg) {
+  if (msg.includes('OK')) return 'log-ok';
+  if (msg.includes('DENIED')) return 'log-denied';
+  if (msg.includes('ERROR')) return 'log-error';
+  if (msg.includes('WARN')) return 'log-warn';
+  return 'log-default';
+}
+
+function renderLogs(logs) {
+  const panel = document.getElementById('logPanel');
+  while (panel.firstChild) panel.removeChild(panel.firstChild);
+  for (const e of logs) {
+    const row = document.createElement('div');
+    row.className = 'log-line';
+    const ts = document.createElement('span');
+    ts.className = 'log-time';
+    ts.textContent = e.time + ' ';
+    const msg = document.createElement('span');
+    msg.className = logClass(e.msg);
+    msg.textContent = e.msg;
+    row.appendChild(ts);
+    row.appendChild(msg);
+    panel.appendChild(row);
+  }
+  panel.scrollTop = panel.scrollHeight;
+}
+
+async function fetchLogs() {
+  try {
+    const res = await fetch('/api/logs');
+    const logs = await res.json();
+    if (logs.length !== lastLogCount) {
+      lastLogCount = logs.length;
+      renderLogs(logs);
+    }
+  } catch(e) {}
+}
+
+document.getElementById('logToggle').onclick = () => {
+  logOpen = !logOpen;
+  const btn = document.getElementById('logToggle');
+  const panel = document.getElementById('logPanel');
+  if (logOpen) {
+    btn.textContent = t('hideLogs') + ' ▲';
+    panel.classList.add('open');
+    fetchLogs();
+    logTimer = setInterval(fetchLogs, 3000);
+  } else {
+    btn.textContent = t('viewLogs') + ' ▼';
+    panel.classList.remove('open');
+    clearInterval(logTimer);
+    logTimer = null;
+  }
+};
+
+loadConfig();
+applyLang();
+</script>
+</body>
+</html>
